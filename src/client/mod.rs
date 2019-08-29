@@ -41,23 +41,23 @@ pub use crate::http as rest;
 #[cfg(feature = "cache")]
 pub use crate::cache::{Cache, CacheRwLock};
 
+use self::bridge::gateway::{ShardManager, ShardManagerMonitor, ShardManagerOptions};
 use crate::internal::prelude::*;
+use log::{debug, error, info};
 use parking_lot::Mutex;
 use parking_lot::RwLock;
-use self::bridge::gateway::{ShardManager, ShardManagerMonitor, ShardManagerOptions};
 use std::sync::Arc;
 use threadpool::ThreadPool;
 use typemap::ShareMap;
-use log::{error, debug, info};
 
-#[cfg(feature = "framework")]
-use crate::framework::Framework;
-#[cfg(feature = "voice")]
-use crate::model::id::UserId;
 #[cfg(feature = "voice")]
 use self::bridge::voice::ClientVoiceManager;
+#[cfg(feature = "framework")]
+use crate::framework::Framework;
 #[cfg(feature = "http")]
 use crate::http::Http;
+#[cfg(feature = "voice")]
+use crate::model::id::UserId;
 #[cfg(feature = "cache")]
 use std::time::Duration;
 
@@ -194,7 +194,8 @@ pub struct Client {
     ///
     /// [`Event::Ready`]: ../model/event/enum.Event.html#variant.Ready
     /// [`on_ready`]: #method.on_ready
-    #[cfg(feature = "framework")] framework: Arc<Mutex<Option<Box<dyn Framework + Send>>>>,
+    #[cfg(feature = "framework")]
+    framework: Arc<Mutex<Option<Box<dyn Framework + Send>>>>,
     /// A HashMap of all shards instantiated by the Client.
     ///
     /// The key is the shard ID and the value is the shard itself.
@@ -341,22 +342,23 @@ impl Client {
     /// # }
     /// ```
     pub fn new<H>(token: impl AsRef<str>, handler: H) -> Result<Self>
-        where H: EventHandler + Send + Sync + 'static {
-
+    where
+        H: EventHandler + Send + Sync + 'static,
+    {
         Self::new_with_handlers(token.as_ref(), Some(handler), None::<DummyRawEventHandler>)
     }
     /// Creates a client with an optional Handler. If you pass `None`, events are never parsed, but
     /// they can be received by registering a RawHandler.
-    pub fn new_with_handlers<H, RH>(token: impl AsRef<str>, handler: Option<H>, raw_handler: Option<RH>) -> Result<Self>
-        where H: EventHandler + Send + Sync + 'static,
-              RH: RawEventHandler + Send + Sync + 'static {
-        let token = token.as_ref().trim();
-
-        let token = if token.starts_with("Bot ") {
-            token.to_string()
-        } else {
-            format!("Bot {}", token)
-        };
+    pub fn new_with_handlers<H, RH>(
+        token: impl AsRef<str>,
+        handler: Option<H>,
+        raw_handler: Option<RH>,
+    ) -> Result<Self>
+    where
+        H: EventHandler + Send + Sync + 'static,
+        RH: RawEventHandler + Send + Sync + 'static,
+    {
+        let token = token.as_ref().trim().to_string();
 
         let http = Http::new_with_token(&token);
 
@@ -370,10 +372,7 @@ impl Client {
         #[cfg(feature = "framework")]
         let framework = Arc::new(Mutex::new(None));
         #[cfg(feature = "voice")]
-        let voice_manager = Arc::new(Mutex::new(ClientVoiceManager::new(
-            0,
-            UserId(0),
-        )));
+        let voice_manager = Arc::new(Mutex::new(ClientVoiceManager::new(0, UserId(0))));
 
         let cache_and_http = Arc::new(CacheAndHttp {
             #[cfg(feature = "cache")]
@@ -452,15 +451,15 @@ impl Client {
     /// # }
     /// ```
     #[cfg(all(feature = "cache", feature = "http"))]
-    pub fn new_with_cache_update_timeout<H>(token: impl AsRef<str>, handler: H, duration: Option<Duration>) -> Result<Self>
-        where H: EventHandler + Send + Sync + 'static {
-        let token = token.as_ref().trim();
-
-        let token = if token.starts_with("Bot ") {
-            token.to_string()
-        } else {
-            format!("Bot {}", token)
-        };
+    pub fn new_with_cache_update_timeout<H>(
+        token: impl AsRef<str>,
+        handler: H,
+        duration: Option<Duration>,
+    ) -> Result<Self>
+    where
+        H: EventHandler + Send + Sync + 'static,
+    {
+        let token = token.as_ref().trim().to_string();
 
         let http = Http::new_with_token(&token);
 
@@ -473,10 +472,7 @@ impl Client {
         #[cfg(feature = "framework")]
         let framework = Arc::new(Mutex::new(None));
         #[cfg(feature = "voice")]
-        let voice_manager = Arc::new(Mutex::new(ClientVoiceManager::new(
-            0,
-            UserId(0),
-        )));
+        let voice_manager = Arc::new(Mutex::new(ClientVoiceManager::new(0, UserId(0))));
 
         let cache_and_http = Arc::new(CacheAndHttp {
             cache: Arc::new(RwLock::new(Cache::default())),
@@ -988,9 +984,7 @@ impl Client {
 
             debug!(
                 "Initializing shard info: {} - {}/{}",
-                shard_data[0],
-                init,
-                shard_data[2],
+                shard_data[0], init, shard_data[2],
             );
 
             if let Err(why) = manager.initialize() {
